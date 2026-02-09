@@ -12,6 +12,8 @@ import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.EmbeddingStoreWithFilteringIT;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.List;
@@ -39,6 +41,41 @@ class InMemoryEmbeddingStoreTest extends EmbeddingStoreWithFilteringIT {
         assertThat(deserializedEmbeddingStore.entries)
                 .isEqualTo(originalEmbeddingStore.entries)
                 .isInstanceOf(CopyOnWriteArrayList.class);
+    }
+
+    @Test
+    void should_serialize_to_and_deserialize_from_stream() {
+        InMemoryEmbeddingStore<TextSegment> originalEmbeddingStore = createEmbeddingStore();
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        originalEmbeddingStore.serializeToStream(outputStream);
+
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
+        InMemoryEmbeddingStore<TextSegment> deserializedEmbeddingStore = InMemoryEmbeddingStore.fromStream(inputStream);
+
+        assertThat(deserializedEmbeddingStore.entries)
+                .isEqualTo(originalEmbeddingStore.entries)
+                .hasSameHashCodeAs(originalEmbeddingStore.entries);
+        assertThat(deserializedEmbeddingStore.entries).isInstanceOf(CopyOnWriteArrayList.class);
+    }
+
+    @Test
+    void should_produce_same_result_with_stream_and_json_methods() {
+        InMemoryEmbeddingStore<TextSegment> originalEmbeddingStore = createEmbeddingStore();
+
+        String json = originalEmbeddingStore.serializeToJson();
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        originalEmbeddingStore.serializeToStream(outputStream);
+        String streamJson = outputStream.toString();
+
+        assertThat(streamJson).isEqualTo(json);
+
+        InMemoryEmbeddingStore<TextSegment> fromJson = InMemoryEmbeddingStore.fromJson(json);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
+        InMemoryEmbeddingStore<TextSegment> fromStream = InMemoryEmbeddingStore.fromStream(inputStream);
+
+        assertThat(fromStream.entries).isEqualTo(fromJson.entries);
     }
 
     @Test

@@ -188,6 +188,23 @@ public class InMemoryEmbeddingStore<Embedded> implements EmbeddingStore<Embedded
     }
 
     /**
+     * Serializes this store to an output stream in JSON format.
+     * <p>
+     * This method uses streaming serialization to avoid holding the entire JSON document in memory.
+     * Prefer this over {@link #serializeToJson()} when dealing with large embedding stores.
+     *
+     * @param outputStream the output stream to write the JSON to
+     * @throws RuntimeException if an I/O error occurs during serialization
+     */
+    public void serializeToStream(OutputStream outputStream) {
+        try {
+            loadCodec().toJson(outputStream, this);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
      * Serializes this store to a file in JSON format.
      *
      * This method uses streaming serialization to avoid holding the entire JSON document in memory.
@@ -211,6 +228,24 @@ public class InMemoryEmbeddingStore<Embedded> implements EmbeddingStore<Embedded
 
     public static InMemoryEmbeddingStore<TextSegment> fromJson(String json) {
         return loadCodec().fromJson(json);
+    }
+
+    /**
+     * Deserializes an embedding store from a JSON input stream.
+     * <p>
+     * Uses streaming deserialization to avoid loading the entire JSON document into memory.
+     * Prefer this over {@link #fromJson(String)} when dealing with large embedding stores.
+     *
+     * @param inputStream the input stream to read the JSON from
+     * @return the deserialized embedding store
+     * @throws RuntimeException if an I/O error occurs during deserialization
+     */
+    public static InMemoryEmbeddingStore<TextSegment> fromStream(InputStream inputStream) {
+        try {
+            return loadCodec().fromJson(inputStream);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
