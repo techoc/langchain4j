@@ -101,7 +101,8 @@ public class AgentUtil {
         Agent annotation = agenticMethod.getAnnotation(Agent.class);
         String name = isNullOrBlank(annotation.name()) ? agenticMethod.getName() : annotation.name();
         String description = isNullOrBlank(annotation.description()) ? annotation.value() : annotation.description();
-        return new AgentExecutor(nonAiAgentInvoker(agent, agenticMethod, name, description, annotation.outputKey(), annotation.async()), agent);
+        String outputKey = outputKey(annotation.outputKey(), annotation.typedOutputKey());
+        return new AgentExecutor(nonAiAgentInvoker(agent, agenticMethod, name, description, outputKey, annotation.async()), agent);
     }
 
     private static AgentInvoker nonAiAgentInvoker(Object agent, Method agenticMethod, String name, String description, String outputKey, boolean async) {
