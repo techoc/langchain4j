@@ -1,0 +1,28 @@
+Fix: NonAIAgent now supports typedOutputKey (Fixes #4682)
+
+Problem:
+When using typedOutputKey in a NonAIAgent, the code would throw
+AgenticSystemConfigurationException with error:
+"Conflicting types for key '': void and java.lang.String"
+
+Root Cause:
+In AgentUtil.nonAiAgentToExecutor(), the code only passed
+annotation.outputKey() to the invoker, without calling the
+outputKey() utility method that handles typedOutputKey.
+
+Solution:
+Call AgentUtil.outputKey(annotation.outputKey(), annotation.typedOutputKey())
+in nonAiAgentToExecutor() to properly handle both outputKey and
+typedOutputKey parameters, ensuring consistent behavior across all
+agent types.
+
+Changes:
+- AgentUtil.java: Updated nonAiAgentToExecutor() to use outputKey()
+  utility method for processing both outputKey and typedOutputKey
+- Added NonAiAgentTypedKeyIT.java: Test class with multiple test
+  cases verifying typedOutputKey support in NonAIAgent
+
+Impact:
+- Enables typedOutputKey functionality in NonAIAgent
+- Maintains backward compatibility with existing outputKey usage
+- Provides consistent API across all agent types (AI, NonAI, Declarative)

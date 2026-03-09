@@ -1,0 +1,41 @@
+Fix: AiServices input guardrails run after content arguments are merged (Fixes #4678)
+
+Problem:
+Input guardrails were being executed BEFORE method-level content
+arguments (Content, List<Content>, multimodal parameters) were
+merged into the final UserMessage. This meant guardrails were
+checking an intermediate state of the message, not the final
+message sent to the model.
+
+Impact:
+- Guardrail rules that depend on actual message structure were incorrect
+- Multimodal inputs (text + images) only showed text to guardrails
+- Debugging/observation of guardrail input state was misleading
+
+Root Cause:
+In DefaultAiServices, the execution order was:
+1. Build initial UserMessage
+2. Run RAG augmentation
+3. Invoke input guardrails (WRONG - content not merged yet)
+4. Merge method-level content arguments
+5. Append output format instructions
+
+Solution:
+Reordered the execution to:
+1. Build initial UserMessage
+2. Run RAG augmentation
+3. Merge method-level content arguments
+4. Invoke input guardrails (CORRECT - now sees full message)
+5. Append output format instructions
+
+Changes:
+- DefaultAiServices.java: Moved content argument merging before
+  input guardrails invocation
+- Moved appendOutputFormatInstructions to after guardrails
+  to maintain correct order
+
+Impact:
+- Input guardrails now see the complete, final UserMessage
+- Multimodal content (text, images, etc.) is visible to guardrails
+- Guardrail logic can properly analyze the full message structure
+- Backward compatible with existing single-text input scenarios
