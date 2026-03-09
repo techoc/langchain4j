@@ -208,9 +208,6 @@ class DefaultAiServices<T> extends AiServices<T> {
                                 .variables(variables)
                                 .build();
 
-                        UserMessage userMessage = invokeInputGuardrails(
-                                context.guardrailService(), method, userMessageForAugmentation, commonGuardrailParam);
-
                         Type returnType = context.returnType != null ? context.returnType : method.getGenericReturnType();
                         boolean streaming = returnType == TokenStream.class || canAdaptTokenStreamTo(returnType);
 
@@ -222,22 +219,29 @@ class DefaultAiServices<T> extends AiServices<T> {
                         if (supportsJsonSchema && !streaming && !returnsImage) {
                             jsonSchema = serviceOutputParser.jsonSchema(returnType);
                         }
-                        if ((!supportsJsonSchema || jsonSchema.isEmpty()) && !streaming && !returnsImage) {
-                            userMessage = appendOutputFormatInstructions(returnType, userMessage);
-                        }
 
+                        // Merge method-level content arguments into UserMessage before guardrails
                         Optional<List<Content>> maybeContents = findContents(method, args);
+                        UserMessage userMessage = userMessageForAugmentation;
                         if (maybeContents.isPresent()) {
                             List<Content> allContents = new ArrayList<>();
                             for (Content content : maybeContents.get()) {
                                 if (content == null) { // placeholder
-                                    allContents.addAll(userMessage.contents());
+                                    allContents.addAll(userMessageForAugmentation.contents());
                                 } else {
                                     allContents.add(content);
                                 }
                             }
                             userMessage = userMessage.toBuilder().contents(allContents).build();
                         }
+
+                        if ((!supportsJsonSchema || jsonSchema.isEmpty()) && !streaming && !returnsImage) {
+                            userMessage = appendOutputFormatInstructions(returnType, userMessage);
+                        }
+
+                        // Invoke input guardrails AFTER content arguments are merged
+                        userMessage = invokeInputGuardrails(
+                                context.guardrailService(), method, userMessage, commonGuardrailParam);
 
                         List<ChatMessage> messages = new ArrayList<>();
                         if (context.hasChatMemory()) {
