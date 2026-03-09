@@ -12,6 +12,8 @@ import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.EmbeddingStoreWithFilteringIT;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.List;
@@ -35,6 +37,22 @@ class InMemoryEmbeddingStoreTest extends EmbeddingStoreWithFilteringIT {
 
         String json = originalEmbeddingStore.serializeToJson();
         InMemoryEmbeddingStore<TextSegment> deserializedEmbeddingStore = InMemoryEmbeddingStore.fromJson(json);
+
+        assertThat(deserializedEmbeddingStore.entries)
+                .isEqualTo(originalEmbeddingStore.entries)
+                .isInstanceOf(CopyOnWriteArrayList.class);
+    }
+
+    @Test
+    void should_serialize_to_and_deserialize_from_stream() {
+
+        InMemoryEmbeddingStore<TextSegment> originalEmbeddingStore = createEmbeddingStore();
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        originalEmbeddingStore.serializeToJson(outputStream);
+
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(outputStream.toByteArray());
+        InMemoryEmbeddingStore<TextSegment> deserializedEmbeddingStore = InMemoryEmbeddingStore.fromJson(inputStream);
 
         assertThat(deserializedEmbeddingStore.entries)
                 .isEqualTo(originalEmbeddingStore.entries)
