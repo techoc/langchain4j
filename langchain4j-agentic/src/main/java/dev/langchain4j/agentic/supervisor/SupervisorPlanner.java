@@ -14,6 +14,7 @@ import dev.langchain4j.agentic.planner.Planner;
 import dev.langchain4j.agentic.planner.PlanningContext;
 import dev.langchain4j.agentic.scope.AgenticScope;
 import dev.langchain4j.agentic.scope.DefaultAgenticScope;
+import dev.langchain4j.internal.Json;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
@@ -142,11 +143,53 @@ public class SupervisorPlanner implements Planner, ChatMemoryAccessProvider {
                     .findFirst().map(AgentArgument::rawType).orElse(null);
             if (argType != null) {
                 Object existingValue = agenticScope.readState(key);
+                // Adapt value to the target type first, so we compare apples with apples
+                Object adaptedValue = adaptValueToType(value, argType);
                 // avoid overwriting a structured state with an unstructured argument generated from supervisor's LLM response
-                return !argType.isAssignableFrom(existingValue.getClass()) || value.getClass().isAssignableFrom(argType);
+                return !argType.isAssignableFrom(existingValue.getClass()) || adaptedValue.getClass().isAssignableFrom(argType);
             }
         }
         return true;
+    }
+
+    private Object adaptValueToType(Object value, Class<?> type) {
+        if (type.isInstance(value)) {
+            return value;
+        }
+        if (value instanceof String s) {
+            try {
+                return switch (type.getName()) {
+                    case "java.lang.String", "java.lang.Object" -> s;
+                    case "int", "java.lang.Integer" -> Integer.parseInt(s);
+                    case "long", "java.lang.Long" -> Long.parseLong(s);
+                    case "double", "java.lang.Double" -> Double.parseDouble(s);
+                    case "float", "java.lang.Float" -> Float.parseFloat(s);
+                    case "boolean", "java.lang.Boolean" -> Boolean.parseBoolean(s);
+                    default -> {
+                        // Try to parse JSON string to the target type (e.g., Map, List, POJO)
+                        try {
+                            yield Json.fromJson(s, type);
+                        } catch (Exception e) {
+                            // If JSON parsing fails, return original value
+                            yield value;
+                        }
+                    }
+                };
+            } catch (NumberFormatException e) {
+                return value;
+            }
+        }
+        if (value instanceof Number n) {
+            return switch (type.getName()) {
+                case "java.lang.String" -> "" + n;
+                case "int", "java.lang.Integer" -> n.intValue();
+                case "long", "java.lang.Long" -> n.longValue();
+                case "double", "java.lang.Double" -> n.doubleValue();
+                case "float", "java.lang.Float" -> n.floatValue();
+                default -> value;
+            };
+        }
+        return value;
     }
 
     private Action doneAction(AgenticScope agenticScope, String lastResponse, AgentInvocation done) {

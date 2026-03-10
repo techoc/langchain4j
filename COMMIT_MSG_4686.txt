@@ -1,0 +1,10 @@
+Fix: Supervisor type guard allows repeated agent invocations with Map arguments (Fixes #4686)
+
+- Modified writeArgumentToScope() to adapt value to target type before type checking
+- Enhanced adaptValueToType() to support JSON string to Map/List conversion
+- Added Json import for JSON parsing support
+- Created test case SupervisorRepeatedAgentInvocationIT to verify the fix
+
+This resolves the issue where repeated @Agent invocations were blocked when
+adaptValueToType() converts String to Map. The type guard now compares adapted
+values instead of raw values, ensuring correct parameter passing.
